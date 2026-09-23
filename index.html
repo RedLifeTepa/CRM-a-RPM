@@ -1,0 +1,272 @@
+<!DOCTYPE html>
+<html lang="es">
+<head>
+  <meta charset="UTF-8" />
+  <meta name="viewport" content="width=device-width, initial-scale=1.0" />
+  <title>Mis listados</title>
+  <style>
+    :root {
+      --bg: #f4f7fb;
+      --card: #ffffff;
+      --ink: #182230;
+      --muted: #718096;
+      --line: #e5eaf1;
+      --primary: #4f46e5;
+      --primary-dark: #3730a3;
+      --success: #16a34a;
+      --danger: #dc2626;
+      --shadow: 0 18px 45px rgba(30, 41, 59, .08);
+    }
+
+    * { box-sizing: border-box; }
+    body {
+      margin: 0;
+      min-height: 100vh;
+      font-family: Inter, ui-sans-serif, system-ui, -apple-system, BlinkMacSystemFont, "Segoe UI", sans-serif;
+      color: var(--ink);
+      background: radial-gradient(circle at top right, #e8eaff 0, transparent 34%), var(--bg);
+    }
+
+    button, input { font: inherit; }
+    button { cursor: pointer; }
+    .app { width: min(1180px, calc(100% - 32px)); margin: 0 auto; padding: 34px 0 44px; }
+    header { display: flex; align-items: flex-end; justify-content: space-between; gap: 20px; margin-bottom: 24px; }
+    .eyebrow { color: var(--primary); font-size: .78rem; font-weight: 800; letter-spacing: .13em; text-transform: uppercase; margin: 0 0 8px; }
+    h1 { margin: 0; font-size: clamp(2rem, 4vw, 3.2rem); letter-spacing: -.055em; line-height: 1; }
+    .subtitle { color: var(--muted); margin: 12px 0 0; }
+    .layout { display: grid; grid-template-columns: 310px 1fr; gap: 22px; align-items: start; }
+    .panel, .content-card { background: var(--card); border: 1px solid rgba(229,234,241,.8); border-radius: 22px; box-shadow: var(--shadow); }
+    .panel { padding: 18px; position: sticky; top: 18px; }
+    .panel-title, .content-head { display: flex; align-items: center; justify-content: space-between; gap: 12px; }
+    .panel h2 { font-size: 1rem; margin: 0; }
+    .count { min-width: 27px; height: 27px; display: inline-grid; place-items: center; border-radius: 99px; background: #eef0ff; color: var(--primary); font-size: .8rem; font-weight: 800; }
+    .list-items { display: grid; gap: 8px; margin-top: 16px; }
+    .list-button { width: 100%; border: 1px solid transparent; background: transparent; color: var(--ink); border-radius: 13px; padding: 12px 13px; display: flex; align-items: center; justify-content: space-between; gap: 10px; text-align: left; transition: .18s ease; }
+    .list-button:hover { background: #f5f6ff; }
+    .list-button.active { background: #eef0ff; border-color: #d9dcff; color: var(--primary-dark); font-weight: 750; }
+    .list-name { overflow: hidden; text-overflow: ellipsis; white-space: nowrap; }
+    .list-number { color: var(--muted); font-size: .76rem; white-space: nowrap; }
+    .empty-lists, .empty-items { color: var(--muted); text-align: center; padding: 30px 12px; font-size: .9rem; }
+    .content-card { min-height: 560px; padding: clamp(20px, 4vw, 38px); }
+    .content-head { align-items: flex-start; border-bottom: 1px solid var(--line); padding-bottom: 22px; }
+    .content-head h2 { margin: 0; font-size: clamp(1.35rem, 3vw, 2rem); letter-spacing: -.035em; }
+    .content-head p { color: var(--muted); margin: 7px 0 0; font-size: .92rem; }
+    .actions { display: flex; gap: 8px; flex-wrap: wrap; justify-content: flex-end; }
+    .button { border: 0; border-radius: 11px; padding: 10px 14px; font-weight: 750; transition: transform .15s ease, background .15s ease; }
+    .button:hover { transform: translateY(-1px); }
+    .button.primary { color: white; background: var(--primary); }
+    .button.primary:hover { background: var(--primary-dark); }
+    .button.ghost { color: var(--primary-dark); background: #eef0ff; }
+    .button.danger { color: var(--danger); background: #fff1f2; }
+    .button.icon { font-size: 1.1rem; padding: 9px 11px; }
+    .add-form { display: flex; gap: 10px; margin: 25px 0 18px; }
+    input[type="text"] { width: 100%; border: 1px solid var(--line); border-radius: 12px; color: var(--ink); background: #fbfcfe; outline: none; padding: 12px 14px; transition: .18s ease; }
+    input[type="text"]:focus { border-color: #9da4ff; box-shadow: 0 0 0 4px #eef0ff; background: #fff; }
+    .items { display: grid; gap: 10px; }
+    .item { display: flex; align-items: center; gap: 13px; border: 1px solid var(--line); border-radius: 15px; padding: 14px 16px; background: #fff; animation: appear .22s ease both; }
+    .item:hover { border-color: #cbd2e1; }
+    .item label { flex: 1; overflow-wrap: anywhere; cursor: pointer; }
+    .item input[type="checkbox"] { appearance: none; flex: 0 0 auto; width: 22px; height: 22px; border: 2px solid #c5cbd8; border-radius: 7px; display: grid; place-content: center; cursor: pointer; transition: .16s ease; }
+    .item input[type="checkbox"]::before { content: "✓"; color: white; font-size: 14px; font-weight: 900; transform: scale(0); transition: .12s ease; }
+    .item input[type="checkbox"]:checked { background: var(--success); border-color: var(--success); }
+    .item input[type="checkbox"]:checked::before { transform: scale(1); }
+    .hint { display: flex; align-items: center; gap: 8px; color: var(--muted); font-size: .84rem; margin-top: 22px; }
+    .hint::before { content: "✓"; display: grid; place-items: center; width: 20px; height: 20px; color: var(--success); background: #dcfce7; border-radius: 50%; font-weight: 900; }
+    .welcome { min-height: 480px; display: grid; place-items: center; text-align: center; color: var(--muted); padding: 40px; }
+    .welcome .symbol { font-size: 4rem; margin-bottom: 12px; }
+    .welcome h2 { color: var(--ink); margin: 0 0 8px; }
+    .welcome p { max-width: 390px; margin: 0 auto 20px; line-height: 1.6; }
+    .modal-backdrop { position: fixed; inset: 0; display: none; place-items: center; background: rgba(15, 23, 42, .42); padding: 18px; z-index: 10; }
+    .modal-backdrop.open { display: grid; }
+    .modal { width: min(420px, 100%); background: white; border-radius: 20px; box-shadow: 0 25px 70px rgba(15,23,42,.25); padding: 24px; }
+    .modal h2 { margin: 0 0 6px; }
+    .modal p { color: var(--muted); margin: 0 0 18px; font-size: .92rem; }
+    .modal-actions { display: flex; justify-content: flex-end; gap: 9px; margin-top: 16px; }
+    .toast { position: fixed; bottom: 22px; left: 50%; transform: translate(-50%, 120px); background: #182230; color: #fff; border-radius: 12px; padding: 12px 17px; box-shadow: var(--shadow); opacity: 0; transition: .25s ease; z-index: 20; font-size: .9rem; }
+    .toast.show { transform: translate(-50%, 0); opacity: 1; }
+    @keyframes appear { from { opacity: 0; transform: translateY(5px); } to { opacity: 1; transform: translateY(0); } }
+    @media (max-width: 760px) {
+      .app { width: min(100% - 22px, 620px); padding-top: 24px; }
+      header { display: block; }
+      .layout { grid-template-columns: 1fr; }
+      .panel { position: static; }
+      .list-items { grid-template-columns: repeat(auto-fit, minmax(140px, 1fr)); }
+      .content-head { display: block; }
+      .actions { justify-content: flex-start; margin-top: 15px; }
+      .add-form { flex-direction: column; }
+      .add-form .button { width: 100%; }
+    }
+  </style>
+</head>
+<body>
+  <main class="app">
+    <header>
+      <div>
+        <p class="eyebrow">Organización personal</p>
+        <h1>Mis listados</h1>
+        <p class="subtitle">Crea, organiza y completa tus pendientes.</p>
+      </div>
+      <button class="button primary" id="newListTop">＋ Nuevo listado</button>
+    </header>
+
+    <section class="layout">
+      <aside class="panel" aria-label="Listados guardados">
+        <div class="panel-title">
+          <h2>Listados guardados</h2>
+          <span class="count" id="listCount">0</span>
+        </div>
+        <div class="list-items" id="listItems"></div>
+      </aside>
+
+      <section class="content-card" id="content"></section>
+    </section>
+  </main>
+
+  <div class="modal-backdrop" id="modalBackdrop" role="dialog" aria-modal="true" aria-labelledby="modalTitle">
+    <form class="modal" id="listForm">
+      <h2 id="modalTitle">Crear listado</h2>
+      <p>Asigna un nombre para encontrarlo fácilmente después.</p>
+      <input id="listNameInput" type="text" maxlength="80" placeholder="Ej. Compras del súper" required autocomplete="off" />
+      <div class="modal-actions">
+        <button type="button" class="button ghost" id="cancelModal">Cancelar</button>
+        <button type="submit" class="button primary">Guardar listado</button>
+      </div>
+    </form>
+  </div>
+  <div class="toast" id="toast" role="status"></div>
+
+  <script>
+    (() => {
+      const STORAGE_KEY = 'mis-listados-v1';
+      const state = { lists: [], activeId: null };
+      const $ = (selector) => document.querySelector(selector);
+
+      function save() {
+        localStorage.setItem(STORAGE_KEY, JSON.stringify(state.lists));
+      }
+
+      function load() {
+        try {
+          const saved = JSON.parse(localStorage.getItem(STORAGE_KEY) || '[]');
+          state.lists = Array.isArray(saved) ? saved.filter(list => list && list.id && list.name) : [];
+          state.lists.forEach(list => { if (!Array.isArray(list.items)) list.items = []; });
+          state.activeId = state.lists[0]?.id || null;
+        } catch { state.lists = []; }
+      }
+
+      function uid() { return Date.now().toString(36) + Math.random().toString(36).slice(2, 8); }
+
+      function activeList() { return state.lists.find(list => list.id === state.activeId); }
+
+      function render() {
+        const listItems = $('#listItems');
+        $('#listCount').textContent = state.lists.length;
+        if (!state.lists.length) {
+          listItems.innerHTML = '<div class="empty-lists">Todavía no tienes listados guardados.</div>';
+        } else {
+          listItems.innerHTML = state.lists.map(list => `
+            <button class="list-button ${list.id === state.activeId ? 'active' : ''}" data-list-id="${list.id}">
+              <span class="list-name">${escapeHtml(list.name)}</span>
+              <span class="list-number">${list.items.length}</span>
+            </button>`).join('');
+        }
+
+        const list = activeList();
+        const content = $('#content');
+        if (!list) {
+          content.innerHTML = `<div class="welcome">
+            <div><div class="symbol">☑️</div><h2>Comienza tu primer listado</h2><p>Guarda listas para tus compras, tareas, pendientes o cualquier actividad que quieras organizar.</p><button class="button primary" id="newListWelcome">＋ Crear listado</button></div>
+          </div>`;
+          $('#newListWelcome').addEventListener('click', openModal);
+          return;
+        }
+
+        const items = list.items.map((item, index) => `
+          <div class="item" style="animation-delay:${index * 35}ms">
+            <input type="checkbox" id="item-${item.id}" data-item-id="${item.id}" aria-label="Completar ${escapeHtml(item.text)}" />
+            <label for="item-${item.id}">${escapeHtml(item.text)}</label>
+          </div>`).join('');
+        content.innerHTML = `<div class="content-head">
+          <div><h2>${escapeHtml(list.name)}</h2><p>${list.items.length ? `${list.items.length} elemento${list.items.length === 1 ? '' : 's'} pendiente${list.items.length === 1 ? '' : 's'}` : 'Todo completado por ahora'}</p></div>
+          <div class="actions"><button class="button ghost" id="renameList">✎ Renombrar</button><button class="button danger" id="deleteList">Eliminar</button></div>
+        </div>
+        <form class="add-form" id="itemForm"><input id="itemInput" type="text" maxlength="160" placeholder="Escribe un nuevo elemento..." autocomplete="off" required /><button class="button primary" type="submit">＋ Agregar</button></form>
+        <div class="items">${items || '<div class="empty-items">No hay elementos pendientes. Agrega el primero arriba.</div>'}</div>
+        ${list.items.length ? '<div class="hint">Marca una casilla y el elemento se eliminará automáticamente.</div>' : ''}`;
+
+        $('#itemForm').addEventListener('submit', addItem);
+        $('#renameList').addEventListener('click', () => openModal(list));
+        $('#deleteList').addEventListener('click', deleteActiveList);
+        content.querySelectorAll('input[data-item-id]').forEach(input => input.addEventListener('change', completeItem));
+      }
+
+      function escapeHtml(value) { return String(value).replace(/[&<>'"]/g, char => ({ '&': '&amp;', '<': '&lt;', '>': '&gt;', "'": '&#039;', '"': '&quot;' }[char])); }
+
+      function openModal(listToEdit = null) {
+        $('#modalTitle').textContent = listToEdit ? 'Renombrar listado' : 'Crear listado';
+        $('#listNameInput').value = listToEdit ? listToEdit.name : '';
+        $('#listForm').dataset.editId = listToEdit?.id || '';
+        $('#modalBackdrop').classList.add('open');
+        setTimeout(() => $('#listNameInput').focus(), 50);
+      }
+
+      function closeModal() { $('#modalBackdrop').classList.remove('open'); }
+
+      function submitList(event) {
+        event.preventDefault();
+        const name = $('#listNameInput').value.trim();
+        if (!name) return;
+        const editId = $('#listForm').dataset.editId;
+        if (editId) {
+          const list = state.lists.find(item => item.id === editId);
+          if (list) list.name = name;
+          showToast('Listado renombrado');
+        } else {
+          const list = { id: uid(), name, items: [] };
+          state.lists.push(list); state.activeId = list.id;
+          showToast('Listado creado');
+        }
+        save(); closeModal(); render();
+      }
+
+      function addItem(event) {
+        event.preventDefault();
+        const list = activeList(); const input = $('#itemInput'); const text = input.value.trim();
+        if (!list || !text) return;
+        list.items.push({ id: uid(), text }); save(); render();
+        setTimeout(() => $('#itemInput')?.focus(), 0);
+      }
+
+      function completeItem(event) {
+        const list = activeList(); if (!list) return;
+        const itemId = event.target.dataset.itemId;
+        list.items = list.items.filter(item => item.id !== itemId);
+        save(); showToast('Elemento completado'); render();
+      }
+
+      function deleteActiveList() {
+        const list = activeList(); if (!list) return;
+        if (!confirm(`¿Eliminar el listado “${list.name}”?`)) return;
+        state.lists = state.lists.filter(item => item.id !== list.id);
+        state.activeId = state.lists[0]?.id || null; save(); render(); showToast('Listado eliminado');
+      }
+
+      function showToast(message) {
+        const toast = $('#toast'); toast.textContent = message; toast.classList.add('show');
+        clearTimeout(showToast.timer); showToast.timer = setTimeout(() => toast.classList.remove('show'), 2200);
+      }
+
+      $('#newListTop').addEventListener('click', () => openModal());
+      $('#cancelModal').addEventListener('click', closeModal);
+      $('#modalBackdrop').addEventListener('click', event => { if (event.target.id === 'modalBackdrop') closeModal(); });
+      $('#listForm').addEventListener('submit', submitList);
+      document.addEventListener('keydown', event => { if (event.key === 'Escape') closeModal(); });
+      $('#listItems').addEventListener('click', event => {
+        const button = event.target.closest('[data-list-id]');
+        if (!button) return; state.activeId = button.dataset.listId; render();
+      });
+      load(); render();
+    })();
+  </script>
+</body>
+</html>
