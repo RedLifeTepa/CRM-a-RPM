@@ -159,7 +159,7 @@
   <script type="module">
     import { initializeApp } from 'https://www.gstatic.com/firebasejs/12.19.0/firebase-app.js';
     import { getAuth, onAuthStateChanged, signInAnonymously } from 'https://www.gstatic.com/firebasejs/12.19.0/firebase-auth.js';
-    import { getFirestore, collection, doc, addDoc, updateDoc, deleteDoc, onSnapshot } from 'https://www.gstatic.com/firebasejs/12.19.0/firebase-firestore.js';
+    import { getFirestore, collection, doc, addDoc, setDoc, getDocs, updateDoc, deleteDoc, onSnapshot } from 'https://www.gstatic.com/firebasejs/12.19.0/firebase-firestore.js';
 
     const firebaseConfig = {
       apiKey: 'AIzaSyDEN0sX4mJacYQSNcuIc2xMMUlgy3rfFQU',
@@ -185,8 +185,15 @@
 
       function activeList() { return state.lists.find(list => list.id === state.activeId); }
 
-      function userListsRef() { return collection(db, 'users', state.uid, 'lists'); }
-      function listRef(listId) { return doc(db, 'users', state.uid, 'lists', listId); }
+      // Colección general: todos los usuarios autenticados ven los mismos listados.
+      function userListsRef() { return collection(db, 'lists'); }
+      function listRef(listId) { return doc(db, 'lists', listId); }
+      async function migrateLegacyLists() {
+        const previous = await getDocs(collection(db, 'users', state.uid, 'lists'));
+        await Promise.all(previous.docs.map(oldList =>
+          setDoc(doc(db, 'lists', `${state.uid}_${oldList.id}`), oldList.data(), { merge: true })
+        ));
+      }
       function setConnection(text, type = '') {
         const status = $('#connectionStatus');
         $('#connectionText').textContent = text;
@@ -335,10 +342,11 @@
         const button = event.target.closest('[data-list-id]');
         if (!button) return; state.activeId = button.dataset.listId; render();
       });
-      onAuthStateChanged(auth, (user) => {
+      onAuthStateChanged(auth, async (user) => {
         if (!user) return;
         state.uid = user.uid;
         setConnection('Autenticado, verificando Firestore...');
+        try { await migrateLegacyLists(); } catch (error) { console.warn('No se encontraron listados anteriores para migrar.', error); }
         if (state.unsubscribe) state.unsubscribe();
         state.unsubscribe = onSnapshot(userListsRef(), (snapshot) => {
           setConnection('Base de datos conectada', 'online');
