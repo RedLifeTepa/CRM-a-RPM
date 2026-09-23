@@ -3,7 +3,7 @@
 <head>
   <meta charset="UTF-8" />
   <meta name="viewport" content="width=device-width, initial-scale=1.0" />
-  <title>Mis listados</title>
+  <title>Mis listados | Firebase conectado</title>
   <style>
     :root {
       --bg: #f4f7fb;
@@ -34,6 +34,20 @@
     .eyebrow { color: var(--primary); font-size: .78rem; font-weight: 800; letter-spacing: .13em; text-transform: uppercase; margin: 0 0 8px; }
     h1 { margin: 0; font-size: clamp(2rem, 4vw, 3.2rem); letter-spacing: -.055em; line-height: 1; }
     .subtitle { color: var(--muted); margin: 12px 0 0; }
+    .connection-panel { display: flex; align-items: center; gap: 13px; color: #92400e; background: #fff7ed; border: 1px solid #fed7aa; border-radius: 16px; padding: 15px 18px; margin: -4px 0 22px; font-size: .95rem; font-weight: 800; box-shadow: 0 8px 24px rgba(146,64,14,.06); }
+    .connection-panel::before { content: ""; flex: 0 0 auto; width: 13px; height: 13px; border-radius: 50%; background: #f59e0b; box-shadow: 0 0 0 5px rgba(245,158,11,.15); }
+    .connection-panel.online { color: #166534; background: #f0fdf4; border-color: #86efac; }
+    .connection-panel.online::before { background: var(--success); box-shadow: 0 0 0 5px rgba(22,163,74,.15); }
+    .connection-panel.error { color: #991b1b; background: #fef2f2; border-color: #fca5a5; }
+    .connection-panel.error::before { background: var(--danger); box-shadow: 0 0 0 5px rgba(220,38,38,.15); }
+    .connection-copy { display: grid; gap: 2px; }
+    .connection-copy small { color: var(--muted); font-size: .72rem; font-weight: 800; letter-spacing: .08em; }
+    .connection-copy span { color: inherit; }
+    .connection::before { content: ""; width: 8px; height: 8px; border-radius: 50%; background: #f59e0b; box-shadow: 0 0 0 3px rgba(245,158,11,.15); }
+    .connection.online { color: #166534; background: #f0fdf4; border-color: #bbf7d0; }
+    .connection.online::before { background: var(--success); box-shadow: 0 0 0 3px rgba(22,163,74,.15); }
+    .connection.error { color: #991b1b; background: #fef2f2; border-color: #fecaca; }
+    .connection.error::before { background: var(--danger); box-shadow: 0 0 0 3px rgba(220,38,38,.15); }
     .layout { display: grid; grid-template-columns: 310px 1fr; gap: 22px; align-items: start; }
     .panel, .content-card { background: var(--card); border: 1px solid rgba(229,234,241,.8); border-radius: 22px; box-shadow: var(--shadow); }
     .panel { padding: 18px; position: sticky; top: 18px; }
@@ -109,6 +123,13 @@
       <button class="button primary" id="newListTop">＋ Nuevo listado</button>
     </header>
 
+    <div class="connection-panel" id="connectionStatus" role="status" aria-live="polite">
+      <div class="connection-copy">
+        <small>ESTADO DE LA BASE DE DATOS</small>
+        <span id="connectionText">Conectando con Firebase...</span>
+      </div>
+    </div>
+
     <section class="layout">
       <aside class="panel" aria-label="Listados guardados">
         <div class="panel-title">
@@ -135,28 +156,58 @@
   </div>
   <div class="toast" id="toast" role="status"></div>
 
-  <script>
+  <script type="module">
+    import { initializeApp } from 'https://www.gstatic.com/firebasejs/12.19.0/firebase-app.js';
+    import { getAuth, onAuthStateChanged, signInAnonymously } from 'https://www.gstatic.com/firebasejs/12.19.0/firebase-auth.js';
+    import { getFirestore, collection, doc, addDoc, updateDoc, deleteDoc, onSnapshot } from 'https://www.gstatic.com/firebasejs/12.19.0/firebase-firestore.js';
+
+    const firebaseConfig = {
+      apiKey: 'AIzaSyDEN0xX4mJacYQSNcuIc2xMMUlgy3rfFQU',
+      authDomain: 'project-2998039825269712276.firebaseapp.com',
+      projectId: 'project-2998039825269712276',
+      storageBucket: 'project-2998039825269712276.firebasestorage.app',
+      messagingSenderId: '401905115506',
+      appId: '1:401905115506:web:b4a36539d945bd8849fdeb'
+    };
+
+    const app = initializeApp(firebaseConfig);
+    const auth = getAuth(app);
+    const db = getFirestore(app);
+    const state = { lists: [], activeId: null, uid: null, unsubscribe: null };
+    let toastTimer;
+    let busy = false;
+    const $ = (selector) => document.querySelector(selector);
+
     (() => {
-      const STORAGE_KEY = 'mis-listados-v1';
-      const state = { lists: [], activeId: null };
       const $ = (selector) => document.querySelector(selector);
-
-      function save() {
-        localStorage.setItem(STORAGE_KEY, JSON.stringify(state.lists));
-      }
-
-      function load() {
-        try {
-          const saved = JSON.parse(localStorage.getItem(STORAGE_KEY) || '[]');
-          state.lists = Array.isArray(saved) ? saved.filter(list => list && list.id && list.name) : [];
-          state.lists.forEach(list => { if (!Array.isArray(list.items)) list.items = []; });
-          state.activeId = state.lists[0]?.id || null;
-        } catch { state.lists = []; }
-      }
 
       function uid() { return Date.now().toString(36) + Math.random().toString(36).slice(2, 8); }
 
       function activeList() { return state.lists.find(list => list.id === state.activeId); }
+
+      function userListsRef() { return collection(db, 'users', state.uid, 'lists'); }
+      function listRef(listId) { return doc(db, 'users', state.uid, 'lists', listId); }
+      function setConnection(text, type = '') {
+        const status = $('#connectionStatus');
+        $('#connectionText').textContent = text;
+        status.title = text;
+        status.className = `connection-panel ${type}`;
+      }
+
+      function handleError(error) {
+        console.error(error);
+        busy = false;
+        const code = error?.code || 'error-desconocido';
+        const readable = {
+          'auth/unauthorized-domain': 'dominio no autorizado',
+          'auth/operation-not-allowed': 'Anonymous no está habilitado',
+          'permission-denied': 'reglas de Firestore rechazaron la operación',
+          'failed-precondition': 'Firestore todavía no está habilitado',
+          'unavailable': 'Firebase no está disponible'
+        }[code] || code;
+        setConnection(`Firebase: ${readable}`, 'error');
+        showToast(`No se pudo conectar: ${readable}`);
+      }
 
       function render() {
         const listItems = $('#listItems');
@@ -212,48 +263,67 @@
 
       function closeModal() { $('#modalBackdrop').classList.remove('open'); }
 
-      function submitList(event) {
+      async function submitList(event) {
         event.preventDefault();
         const name = $('#listNameInput').value.trim();
-        if (!name) return;
+        if (!name || !state.uid || busy) return;
         const editId = $('#listForm').dataset.editId;
-        if (editId) {
-          const list = state.lists.find(item => item.id === editId);
-          if (list) list.name = name;
-          showToast('Listado renombrado');
-        } else {
-          const list = { id: uid(), name, items: [] };
-          state.lists.push(list); state.activeId = list.id;
-          showToast('Listado creado');
-        }
-        save(); closeModal(); render();
+        busy = true;
+        try {
+          if (editId) {
+            await updateDoc(listRef(editId), { name, updatedAt: Date.now() });
+            showToast('Listado renombrado');
+          } else {
+            const created = await addDoc(userListsRef(), { name, items: [], createdAt: Date.now(), updatedAt: Date.now() });
+            state.activeId = created.id;
+            showToast('Listado creado');
+          }
+          closeModal();
+        } catch (error) { handleError(error); }
+        finally { busy = false; }
       }
 
-      function addItem(event) {
+      async function addItem(event) {
         event.preventDefault();
         const list = activeList(); const input = $('#itemInput'); const text = input.value.trim();
-        if (!list || !text) return;
-        list.items.push({ id: uid(), text }); save(); render();
-        setTimeout(() => $('#itemInput')?.focus(), 0);
+        if (!list || !text || !state.uid || busy) return;
+        busy = true;
+        try {
+          await updateDoc(listRef(list.id), { items: [...list.items, { id: uid(), text }], updatedAt: Date.now() });
+          input.value = '';
+          setTimeout(() => $('#itemInput')?.focus(), 0);
+        } catch (error) { handleError(error); }
+        finally { busy = false; }
       }
 
-      function completeItem(event) {
+      async function completeItem(event) {
         const list = activeList(); if (!list) return;
         const itemId = event.target.dataset.itemId;
-        list.items = list.items.filter(item => item.id !== itemId);
-        save(); showToast('Elemento completado'); render();
+        if (!state.uid || busy) return;
+        busy = true;
+        try {
+          await updateDoc(listRef(list.id), { items: list.items.filter(item => item.id !== itemId), updatedAt: Date.now() });
+          showToast('Elemento completado');
+        } catch (error) { event.target.checked = false; handleError(error); }
+        finally { busy = false; }
       }
 
-      function deleteActiveList() {
+      async function deleteActiveList() {
         const list = activeList(); if (!list) return;
         if (!confirm(`¿Eliminar el listado “${list.name}”?`)) return;
-        state.lists = state.lists.filter(item => item.id !== list.id);
-        state.activeId = state.lists[0]?.id || null; save(); render(); showToast('Listado eliminado');
+        if (!state.uid || busy) return;
+        busy = true;
+        try {
+          await deleteDoc(listRef(list.id));
+          state.activeId = null;
+          showToast('Listado eliminado');
+        } catch (error) { handleError(error); }
+        finally { busy = false; }
       }
 
       function showToast(message) {
         const toast = $('#toast'); toast.textContent = message; toast.classList.add('show');
-        clearTimeout(showToast.timer); showToast.timer = setTimeout(() => toast.classList.remove('show'), 2200);
+        clearTimeout(toastTimer); toastTimer = setTimeout(() => toast.classList.remove('show'), 2200);
       }
 
       $('#newListTop').addEventListener('click', () => openModal());
@@ -265,7 +335,23 @@
         const button = event.target.closest('[data-list-id]');
         if (!button) return; state.activeId = button.dataset.listId; render();
       });
-      load(); render();
+      onAuthStateChanged(auth, (user) => {
+        if (!user) return;
+        state.uid = user.uid;
+        setConnection('Autenticado, verificando Firestore...');
+        if (state.unsubscribe) state.unsubscribe();
+        state.unsubscribe = onSnapshot(userListsRef(), (snapshot) => {
+          setConnection('Base de datos conectada', 'online');
+          state.lists = snapshot.docs.map(item => ({ id: item.id, ...item.data(), items: Array.isArray(item.data().items) ? item.data().items : [] }))
+            .sort((a, b) => (a.createdAt || 0) - (b.createdAt || 0));
+          if (!state.lists.some(list => list.id === state.activeId)) state.activeId = state.lists[0]?.id || null;
+          render();
+        }, handleError);
+      });
+
+      window.addEventListener('online', () => setConnection('Reconectando con Firestore...'));
+      window.addEventListener('offline', () => setConnection('Sin conexión a internet', 'error'));
+      signInAnonymously(auth).catch(handleError);
     })();
   </script>
 </body>
